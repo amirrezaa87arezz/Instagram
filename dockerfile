@@ -1,22 +1,10 @@
 FROM python:3.10-slim
 
-# نصب ابزارهای مورد نیاز سیستمی
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    build-essential \
-    python3-dev \
-    gcc \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# نصب ffmpeg برای پردازش ویدیو
+RUN apt-get update && apt-get install -y ffmpeg && apt-get clean
 
 WORKDIR /app
-
-# آپدیت pip و نصب پیش‌نیازها با اولویت نسخه‌های آماده
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
 COPY . .
+RUN pip install --no-cache-dir pyTelegramBotAPI yt-dlp
 
 CMD ["python", "main.py"]
