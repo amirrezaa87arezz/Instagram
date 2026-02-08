@@ -1,4 +1,2 @@
-aiogram==3.3.0
+pyTelegramBotAPI
 yt-dlp
-pydantic==2.5.3
-pydantic-core==2.14.6
