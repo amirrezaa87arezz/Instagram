@@ -1,16 +1,18 @@
 FROM python:3.10-slim
 
-# نصب ابزارهای مورد نیاز سیستم برای کامپایل پکیج‌ها و پردازش ویدیو
+# نصب ابزارهای مورد نیاز سیستمی
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     build-essential \
     python3-dev \
-    && apt-get clean
+    gcc \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# آپدیت خودِ pip برای جلوگیری از ارورهای نصب
-RUN pip install --no-cache-dir --upgrade pip
+# آپدیت pip و نصب پیش‌نیازها با اولویت نسخه‌های آماده
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
