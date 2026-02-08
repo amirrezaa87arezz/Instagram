@@ -7,11 +7,8 @@ import threading
 from yt_dlp import YoutubeDL
 from instagrapi import Client
 
-# --- تنظیمات اصلی ---
+# --- تنظیمات ---
 TOKEN = "8576338411:AAGRw-zAM2U5CaBsn53fUTWGl1ju_UW3n4I"
-INSTA_USER = "dragonn.dl"
-INSTA_PASS = "#dragon#$123321"
-
 bot = telebot.TeleBot(TOKEN)
 cl = Client()
 DB_FILE = "users_data.json"
@@ -29,33 +26,20 @@ def save_db():
     with open(DB_FILE, "w") as f:
         json.dump(db, f)
 
-# متد لاگین اصلاح شده برای حل ارور set_cookies
+# متد لاگین کاملاً تغییر یافته برای حذف ارور set_cookies
 def insta_login():
     try:
-        print("Dragon is waking up... 🐲")
+        print("Dragon is trying a new technique... 🐲")
         
-        # سشن‌آیدی اختصاصی شما
-        my_session_id = "72867675539%3AACcKqkPmesZgdm%3A27%3AAYh8Md6lF1xwQD0eTS-5plrnrAOgIcDSDjRR3RwqzQ"
+        # سشن‌آیدی شما
+        sid = "72867675539%3AACcKqkPmesZgdm%3A27%3AAYh8Md6lF1xwQD0eTS-5plrnrAOgIcDSDjRR3RwqzQ"
         
-        # تنظیمات مستقیم سشن
-        settings = {
-            "authorization_data": {
-                "sessionid": my_session_id
-            }
-        }
-        cl.set_settings(settings)
+        # لاگین مستقیم با کوکی سشن
+        cl.login_by_sessionid(sid)
         
-        # تست ورود
-        cl.get_timeline_feed() 
-        print("Connected to Instagram successfully! ✅")
-        
+        print("Success! Dragon is online. ✅")
     except Exception as e:
-        print(f"⚠️ Login Error: {e}")
-        try:
-            cl.login(INSTA_USER, INSTA_PASS)
-            print("Login with pass successful! ✅")
-        except Exception as e2:
-            print(f"❌ Critical Failure: {e2}")
+        print(f"❌ Login Failed: {e}")
 
 def download_and_send(url, chat_id, caption):
     opts = {'format': 'best[ext=mp4]/best', 'outtmpl': f'downloads/%(id)s.%(ext)s', 'quiet': True}
@@ -71,44 +55,47 @@ def download_and_send(url, chat_id, caption):
             db["stats"][uid] = db["stats"].get(uid, 0) + 1
             save_db()
     except Exception as e:
-        bot.send_message(chat_id, f"❌ خطا: {e}")
+        bot.send_message(chat_id, f"❌ Download Error: {e}")
 
 def watch_directs():
     while True:
         try:
-            # متد اصلاح شده برای گرفتن دایرکت‌ها
+            # استفاده از متد صحیح برای گرفتن دایرکت‌ها
             threads = cl.direct_threads()
             for thread in threads:
                 sender_uname = thread.users[0].username.lower()
                 if sender_uname in db["users"]:
-                    # گرفتن آخرین پیام دایرکت
-                    msg = cl.direct_messages(thread.id, amount=1)[0]
-                    if msg.text and "instagram.com" in msg.text and not msg.is_sent_by_viewer:
-                        # چک کردن لایک برای جلوگیری از تکرار
-                        target_id = db["users"][sender_uname]
-                        threading.Thread(target=download_and_send, args=(msg.text, target_id, f"📥 از دایرکت @{sender_uname}")).start()
-                        # لایک کردن پیام برای اینکه دوباره دانلود نشود
-                        cl.direct_message_react(thread.id, msg.id, '❤️')
+                    # چک کردن آخرین پیام
+                    msg = thread.messages[0]
+                    # اگر لینک اینستاگرام بود و ما نفرستاده بودیم
+                    if msg.text and "instagram.com" in msg.text and msg.user_id != cl.user_id:
+                        # چک کردن اینکه لایک نشده باشد (نشان‌دهنده پیام جدید)
+                        if not msg.reactions:
+                            target_id = db["users"][sender_uname]
+                            threading.Thread(target=download_and_send, args=(msg.text, target_id, f"📥 دریافت شد از @{sender_uname}")).start()
+                            # لایک کردن برای علامت‌گذاری به عنوان "خوانده شده"
+                            cl.direct_message_react(thread.id, msg.id, '❤️')
             time.sleep(40)
-        except:
+        except Exception as e:
+            print(f"Watch Error: {e}")
             time.sleep(60)
 
 @bot.message_handler(commands=['start'])
 def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(types.KeyboardButton("🔗 متصل کردن اکانت اینستاگرام"), types.KeyboardButton("📊 آمار من"))
-    bot.send_message(message.chat.id, "🐲 دراگون آماده است!", reply_markup=markup)
+    markup.add(types.KeyboardButton("🔗 متصل کردن اکانت"), types.KeyboardButton("📊 آمار"))
+    bot.send_message(message.chat.id, "🐲 دراگون فعال شد!", reply_markup=markup)
 
-@bot.message_handler(func=lambda m: m.text == "🔗 متصل کردن اکانت اینستاگرام")
+@bot.message_handler(func=lambda m: m.text == "🔗 متصل کردن اکانت")
 def ask_conn(message):
-    msg = bot.send_message(message.chat.id, "یوزرنیم اینستاگرامت رو (بدون @) بفرست:")
+    msg = bot.send_message(message.chat.id, "یوزرنیم اینستاگرامت رو بفرست:")
     bot.register_next_step_handler(msg, do_connect)
 
 def do_connect(message):
     uname = message.text.lower().strip()
     db["users"][uname] = message.chat.id
     save_db()
-    bot.send_message(message.chat.id, f"✅ اکانت @{uname} متصل شد.")
+    bot.send_message(message.chat.id, f"✅ @{uname} متصل شد.")
 
 @bot.message_handler(func=lambda m: "instagram.com" in m.text)
 def handle_link(message):
@@ -117,4 +104,4 @@ def handle_link(message):
 if __name__ == "__main__":
     insta_login()
     threading.Thread(target=watch_directs, daemon=True).start()
-    bot.infinity_polling(skip_pending=True) # اضافه کردن skip_pending برای حل ارور Conflict
+    bot.infinity_polling(skip_pending=True)
