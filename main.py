@@ -1,66 +1,48 @@
+import telebot
 import os
-import asyncio
-import logging
-from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import CommandStart
 from yt_dlp import YoutubeDL
-
-logging.basicConfig(level=logging.INFO)
+import threading
 
 # توکن شما
 TOKEN = "8576338411:AAGRw-zAM2U5CaBsn53fUTWGl1ju_UW3n4I"
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
+bot = telebot.TeleBot(TOKEN)
 
+# تنظیمات دانلود
 YDL_OPTIONS = {
-    'format': 'best', 
+    'format': 'best[ext=mp4]/best',
     'outtmpl': 'downloads/%(id)s.%(ext)s',
-    'noplaylist': True,
     'quiet': True,
     'no_warnings': True,
-    'check_formats': False, # برای سرعت بیشتر و خطای کمتر
 }
 
-async def download_insta(url):
+def download_and_send(message):
+    url = message.text
+    status_msg = bot.reply_to(message, "⏳ در حال دانلود از اینستاگرام...")
+    
     try:
         if not os.path.exists('downloads'): os.makedirs('downloads')
+        
         with YoutubeDL(YDL_OPTIONS) as ydl:
             info = ydl.extract_info(url, download=True)
-            return ydl.prepare_filename(info)
-    except Exception as e:
-        logging.error(f"Error: {e}")
-        return None
-
-@dp.message(CommandStart())
-async def cmd_start(message: types.Message):
-    await message.reply("ربات فعال شد! 🔥\nلینک اینستاگرام بفرست.")
-
-@dp.message(F.text.contains("instagram.com"))
-async def handle_link(message: types.Message):
-    sent_msg = await message.reply("⏳ در حال دریافت فایل...")
-    
-    # استفاده از ترد برای جلوگیری از بلاک شدن ربات
-    file_path = await asyncio.to_thread(download_insta, message.text)
-
-    if file_path and os.path.exists(file_path):
-        try:
-            await sent_msg.edit_text("📤 در حال آپلود...")
-            file = types.FSInputFile(file_path)
+            file_path = ydl.prepare_filename(info)
             
-            if file_path.lower().endswith(('.mp4', '.mov', '.m4v')):
-                await message.answer_video(file, caption="بفرمایید ✅")
-            else:
-                await message.answer_photo(file, caption="بفرمایید ✅")
-        except Exception as e:
-            await message.answer(f"❌ خطا در ارسال: {e}")
-        finally:
-            if os.path.exists(file_path): os.remove(file_path)
-            await sent_msg.delete()
-    else:
-        await sent_msg.edit_text("❌ دانلود ناموفق! صفحه باید عمومی باشد.")
+            with open(file_path, 'rb') as video:
+                bot.send_video(message.chat.id, video, caption="✅ بفرمایید!")
+            
+            os.remove(file_path) # حذف فایل بعد از ارسال
+            bot.delete_message(message.chat.id, status_msg.message_id)
+            
+    except Exception as e:
+        bot.edit_message_text(f"❌ خطا در دانلود! مطمئن شوید پیج عمومی است.", message.chat.id, status_msg.message_id)
 
-async def main():
-    await dp.start_polling(bot)
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "سلام! لینک اینستاگرام بفرست تا برات دانلود کنم. 🔥")
 
-if __name__ == "__main__":
-    asyncio.run(main())
+@bot.message_handler(func=lambda m: "instagram.com" in m.text)
+def handle_insta(message):
+    # اجرای دانلود در یک ترد جداگانه برای جلوگیری از هنگ کردن ربات
+    threading.Thread(target=download_and_send, args=(message,)).start()
+
+print("Bot is running...")
+bot.infinity_polling()
