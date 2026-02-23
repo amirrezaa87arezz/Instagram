@@ -1,32 +1,13 @@
 import telebot
 from telebot import types
-import os, json, threading, time, random
+import os, json, threading, time
 from yt_dlp import YoutubeDL
-from instagrapi import Client
 import logging
 
 # --- تنظیمات اصلی ---
 TOKEN = "8576338411:AAGRw-zAM2U5CaBsn53fUTWGl1ju_UW3n4I"
 bot = telebot.TeleBot(TOKEN)
-cl = Client()
 DB_FILE = "users_data.json"
-
-# --- تنظیمات حرفه‌ای ---
-class InstagramManager:
-    def __init__(self):
-        self.cl = Client()
-        self.session_id = "72867675539%3AACcKqkPmesZgdm%3A27%3AAYh8Md6lF1xwQD0eTS-5plrnrAOgIcDSDjRR3RwqzQ"
-        self.last_request = 0
-        
-    def login(self):
-        """لاگین با Session ID"""
-        try:
-            self.cl.login_by_sessionid(self.session_id)
-            print("✅ اتصال به اینستاگرام موفق بود")
-            return True
-        except Exception as e:
-            print(f"❌ خطا در اتصال به اینستاگرام: {e}")
-            return False
 
 # --- دیتابیس ---
 def load_db():
@@ -37,13 +18,12 @@ def load_db():
     return {"users": {}, "stats": {}}
 
 db = load_db()
-instagram = InstagramManager()
 
 def save_db():
     with open(DB_FILE, "w") as f:
         json.dump(db, f)
 
-# --- تابع دانلود ساده و پایدار ---
+# --- تابع دانلود ---
 def download_and_send(url, chat_id):
     opts = {
         'format': 'best',
@@ -92,14 +72,15 @@ def start(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(
         types.KeyboardButton("📥 دانلود"),
-        types.KeyboardButton("📊 آمار"),
-        types.KeyboardButton("🔄 وضعیت اتصال")
+        types.KeyboardButton("📊 آمار")
     )
     
     bot.send_message(
         message.chat.id,
         "🐲 **ربات دانلود اینستاگرام**\n\n"
-        "لینک پست یا ریلز بفرستید تا دانلود کنم ⬇️",
+        "✅ **فقط کافیه لینک پست یا ریلز بفرستی**\n"
+        "مثال: https://www.instagram.com/reel/...\n\n"
+        "⚡ بدون نیاز به اتصال به اینستاگرام",
         reply_markup=markup,
         parse_mode="Markdown"
     )
@@ -108,15 +89,6 @@ def start(message):
 def stats(message):
     count = db["stats"].get(str(message.chat.id), 0)
     bot.reply_to(message, f"📊 تعداد دانلودهای شما: {count}")
-
-@bot.message_handler(func=lambda m: m.text == "🔄 وضعیت اتصال")
-def status(message):
-    if instagram.cl.user_id:
-        bot.reply_to(message, "✅ اتصال به اینستاگرام: فعال")
-    else:
-        bot.reply_to(message, "⚠️ اتصال به اینستاگرام: غیرفعال (فقط دانلود با لینک)")
-        # تلاش مجدد برای اتصال
-        instagram.login()
 
 @bot.message_handler(func=lambda m: m.text == "📥 دانلود")
 def ask_link(message):
@@ -131,9 +103,5 @@ def handle_link(message):
 # --- اجرا ---
 if __name__ == "__main__":
     print("🚀 ربات در حال راه‌اندازی...")
-    
-    # تلاش برای اتصال به اینستاگرام
-    instagram.login()
-    
     print("🤖 ربات تلگرام فعال شد")
     bot.infinity_polling(skip_pending=True)
