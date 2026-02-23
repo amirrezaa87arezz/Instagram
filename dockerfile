@@ -1,14 +1,16 @@
 FROM python:3.10-slim
 
-# نصب ابزارهای مورد نیاز برای پردازش ویدیو
-RUN apt-get update && apt-get install -y ffmpeg && apt-get clean
+# نصب ffmpeg
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY . .
-
-# نصب کتابخانه‌های پایتون
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# اجرای ربات
+COPY . .
+
 CMD ["python", "main.py"]
