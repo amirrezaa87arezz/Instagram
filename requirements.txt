@@ -1,3 +1,6 @@
 pyTelegramBotAPI==4.14.0
 yt-dlp==2024.4.9
+instagrapi==2.0.0
 requests==2.31.0
+Pillow==9.5.0
+cryptography==41.0.7
